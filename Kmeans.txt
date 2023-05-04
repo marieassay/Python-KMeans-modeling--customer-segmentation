@@ -1,0 +1,204 @@
+#Import libraries
+
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+from sklearn.cluster import KMeans
+import numpy as np
+import warnings
+warnings.filterwarnings('ignore')
+
+#Read in csv data
+
+df = pd.read_csv(r'C:\Users\Ibrahim Nas\Downloads\Mall_Customers.csv')
+
+df.head()
+
+df.describe()
+
+# Univariate Analysis 
+
+sns.displot(df['Annual Income (k$)'])
+
+df.columns
+
+columns=['Age', 'Annual Income (k$)',
+       'Spending Score (1-100)']
+for i in columns:
+    plt.figure()
+    sns.displot(df[i]);
+
+sns.displot(df, x="Annual Income (k$)", hue="Gender", kde=True);
+
+columns=['Age', 'Annual Income (k$)',
+       'Spending Score (1-100)']
+for i in columns:
+    plt.figure()
+    sns.displot(df, x=i, hue="Gender", kde=True);
+
+columns=['Age', 'Annual Income (k$)',
+       'Spending Score (1-100)']
+for i in columns:
+    plt.figure()
+sns.boxplot(data=df,x='Gender', y=df[i]);
+
+df['Gender'].value_counts(normalize=True)
+
+# Bivariate Analysis
+
+#Create a scatterplot using 2 variables- Annual Income and Spending Score
+sns.scatterplot(data=df, x='Annual Income (k$)', y='Spending Score (1-100)')
+
+# Create pairplot for all variables
+sns.pairplot(df)
+
+# Specify to remove/drop the CustomerID column along the columns axis by using axis=1
+df = df.drop('CustomerID', axis=1)
+sns.pairplot(df)
+
+#Create an additional hyperparameter on the pairplot to examine the insights between Male and Females cohorts
+sns.pairplot(df, hue='Gender')
+
+# Finding the mean values of 3 variable columns Age, Annual Income,Spending Score
+df.groupby(['Gender'])['Age', 'Annual Income (k$)',
+       'Spending Score (1-100)'].mean()
+
+# Finding the correlation between the 3 variables
+df.corr()
+
+sns.heatmap(df.corr(),annot=True,cmap='coolwarm')
+
+# KMeans Clustering- Univariate, Bivariate, Multivariate
+
+#Initiating the machine learning algorithm and then fitting the data then define labels out of the model
+#Univariate clustering
+clustering1 = KMeans(n_clusters=3)
+
+#Fit the data(Annual Income column) into the model
+clustering1.fit(df[['Annual Income (k$)']])
+KMeans()
+
+clustering1.labels_
+
+#Defining the labels with the data(Annual Income column) and viewing a snippet of the output
+df['Income Cluster']= clustering1.labels_
+df.head()
+
+#Checking how many customers fall within the 6 different Income clusters
+df['Income Cluster'].value_counts()
+
+clustering1.inertia_
+
+#Initiating a for loop to re-define the number of clusters for our data    
+inertia_scores = []
+for i in range(1, 11):
+    kmeans = KMeans(n_clusters=i)
+    kmeans.fit(df[['Annual Income (k$)']])
+    inertia_scores.append(kmeans.inertia_)
+
+#Plotting an elbow curve, to determine the optimal number of clusters for the KMeans model
+plt.plot(range(1,11),inertia_scores)
+plt.xlabel('Number of Clusters')
+plt.ylabel('Inertia Score')
+plt.title('Elbow Curve')
+plt.show()
+
+df.groupby('Income Cluster')['Age', 'Annual Income (k$)', 'Spending Score (1-100)'].mean()
+
+#Bivariate Clustering Model defined with 5 clusters
+clustering2 = KMeans(n_clusters=5)
+clustering2.fit(df[['Annual Income (k$)', 'Spending Score (1-100)']])
+df['Income and Spending Cluster'] = clustering2.labels_
+df.head()
+
+#KMeans model for bivariate model using a for loop to re-define the number of clusters
+inertia_scores2 = []
+for i in range(1,11):
+    kmeans2 = KMeans(n_clusters=i)
+    kmeans2.fit(df[['Annual Income (k$)', 'Spending Score (1-100)']])
+    inertia_scores2.append(kmeans2.inertia_)
+
+#Plotting an elbow curve, to find the optimal number of clusters for this second Bivariate KMeans model.
+plt.plot(range(1,11), inertia_scores2)
+plt.xlabel('Number of Clusters')
+plt.ylabel('Inertia Score')
+plt.title('Elbow Curve2')
+plt.show()
+
+#Creating a dataframe from the 5 clusters defined in the bivariate KMeans model
+centers=pd.DataFrame(clustering2.cluster_centers_)
+centers.columns=['x','y']
+centers
+
+#Visualizing the above bivariate elbow curve in a scatterplot with marked cluster centers
+plt.figure(figsize=(10,8))
+plt.scatter(x=centers['x'], y=centers['y'], s=100, c='black', marker='*')
+sns.scatterplot(data=df, x='Annual Income (k$)', y='Spending Score (1-100)', hue='Income and Spending Cluster', palette='tab10')
+
+plt.savefig('bivariate_clustering_centers.png')
+
+#Cross-tabulation table showing the proportion of individuals in each gender category for income and spending clusters
+pd.crosstab(df['Income and Spending Cluster'], df['Gender'], normalize='index')
+
+#Identifying patterns or trends by calculating the average age of each of the 5 segmentated clusters
+df.groupby('Income and Spending Cluster')['Age', 'Annual Income (k$)', 'Spending Score (1-100)'].mean()
+
+#Multivariate clustering
+#Importing scaler to scale data
+from sklearn.preprocessing import StandardScaler
+
+Scaler = StandardScaler()
+
+#Creating binary variables for the categorical column- Gender and the data and viewing a sample of the result
+dff = pd.get_dummies(df)
+dff.head()
+
+#Dropped one of the columns for Gender and merged the Gender data
+dff = pd.get_dummies(df, drop_first=True)
+dff.head()
+
+#Renaming the Gender column
+dff = dff.rename(columns={'Gender_Male': 'Gender: F=0/M=1'})
+dff.head()
+
+dff.columns
+
+dff=dff[['Age', 'Annual Income (k$)', 'Spending Score (1-100)', 'Gender: F=0/M=1']]
+dff.head()
+
+#Scaling the data and creating an array
+dff = Scaler.fit_transform(dff)
+
+#Creating a new DataFrame using the resulting array
+dff = pd.DataFrame(Scaler.fit_transform(dff))
+dff.head()
+
+#KMeans model for multivariate model using a for loop to re-define the number of clusters
+inertia_scores3=[]
+for i in range(1,11):
+    kmeans3=KMeans(n_clusters=i)
+    kmeans3.fit(dff)
+    inertia_scores3.append(kmeans3.inertia_)
+
+#Plotting an elbow curve, to find the optimal number of clusters for this Multivariate KMeans model.
+plt.plot(range(1,11), inertia_scores3)
+plt.xlabel('Number of Clusters')
+plt.ylabel('Inertia Score')
+plt.title('Elbow Curve3')
+plt.show()
+
+#Multivariate Clustering Model defined with 4 clusters
+clustering3 = KMeans(n_clusters=4)
+clustering3.fit(dff)
+df['Income and Spending Cluster'] = clustering3.labels_
+df.head()
+
+#Since 'CustomerID' column will not be in dff, adding the column back in for a unique identifier as needed
+df['CustomerID'] = pd.Series(range(1, len(df)+1))
+id_column = df['CustomerID']    #Getting the id column from the original data frame
+dff.insert(0, 'CustomerID', id_column)    #Adding the id column to the front of this dff dataframe
+
+df
+
+df.to_csv('clustering.csv')
+
